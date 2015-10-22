@@ -183,14 +183,17 @@ This approach keeps Tasks and Persons completely separate. However, this now
 requires up to *three* reads / writes per operation. And it really doesn't buy
 much in terms of usefulness.
 
+### Queries: approach 3
+
+TBD
+
+### Which to choose?
+
 Looking at all three approaches, approach #2 in general seems to fit our needs
 the best. If there's ever a need to have speedier access to task details for a
 given Person, #2 could be combined with approach #1, storing a Task Id array
 within a Person document. For now, we'll stick with approach #2.
 
-### Queries: approach 3
-
-TBD
 
 ## Task categories
 
