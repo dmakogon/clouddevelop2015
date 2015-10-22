@@ -63,15 +63,15 @@ inner join Task t on ta.TaskId = t.Id
 With our relational model, we kept a normalized list of categories in a Category table:
 
 Id | CategoryName
-------
-1 | Chores
-2 | School
-3 | Work
+---|------------
+1  | Chores
+2  | School
+3  | Work
 
 Since each task may have multiple categories, we have a TaskCategories table:
 
 TaskId | CategoryId
----------
+-------|-----------
 1 | 3
 2 | 3
 2 | 5
