@@ -36,7 +36,7 @@ For the workshop, we'll tackle a Task database. And to make it a bit more intere
 it has a bunch of tables and normalization that goes beyond the basic task list:
 
  Table | description
- ------|------------
+ :------|:------------
  Person | Registered people
  Category | Task categories
  Status | Task status
@@ -48,7 +48,6 @@ it has a bunch of tables and normalization that goes beyond the basic task list:
 ### Relational queries
 
 To start, it's helpful to see the types of queries are needed to render task details.
-
 
 
 #### Getting tasks
@@ -129,10 +128,12 @@ Imagine each Person document contains an array of tasks:
 	username: 'David',
 	tasks: [
 		{
+			taskId: 1,
 			description: 'Pack for CloudDevelop',
 			status: 'In progress'
 		},
 		{
+			taskId: 2,
 			description: 'Finalize walkthrough doc',
 			status: 'Complete'
 		}
@@ -145,13 +146,13 @@ This seems reasonable, except for a few challenges:
  Person data.
 
 Regarding the unbounded array: We could reduce risk by storing an array of Task Id's
-within a Person document:
+within a Person document, and moving Tasks to separate documents:
 ```
 {
 	type: 'Person',
 	personId: 1,
 	username: 'David',
-	tasks: [ {taskId: 1}, {taskId: 2} ]
+	tasks: [ 1, 2 ]
 }
 ```
 This is much more efficient in terms of Person documents storage. However,
@@ -176,7 +177,7 @@ a realistic concern).
 	type: 'Task',
 	taskId: 2,
 	personId: 1,
-	assistantIds: [ {personId: 2}, {personId: 3} ],
+	assistantIds: [ 2 ],
 	description: 'Finalize walkthrough doc'
 }
 ```
@@ -189,6 +190,7 @@ denormalizing a bit:
 	taskId: '2',
 	personId: 1,
 	**personUsername: 'David'**,
+	**assistants: [ {personId: 2, username: 'Ryan'} ],**
 	...
 }
 ```
@@ -196,12 +198,9 @@ denormalizing a bit:
 This approach (putting the person's ID in the task)
 is equivalent to the PersonId foreign key in the relational Task table.
 
-
-
 ### Queries: approach 3
 
 TBD
-
 
 
 ### Which to choose?
@@ -217,7 +216,7 @@ within a Person document. For now, we'll stick with approach #3.
 With our relational model, we kept a normalized list of categories in a Category table:
 
 Id | CategoryName
----|------------
+:--|:-----------
 1  | Chores
 2  | School
 3  | Work
@@ -225,7 +224,7 @@ Id | CategoryName
 Since each task may have multiple categories, we have a TaskCategories table:
 
 TaskId | CategoryId
--------|-----------
+:------|:----------
 1 | 3
 2 | 3
 2 | 5
@@ -277,7 +276,7 @@ the main document.
 	Type: 'Task',
 	taskId: '2',
 	description: 'Finalize walkthrough doc',
-	categories: [ {categoryId: 3}, {categoryId: 5} ]
+	categories: [ 3, 5 ]
 }
 ```
 Approach #2 still requires searching each task's array, but there'd be no need
@@ -291,9 +290,9 @@ Optionally, we could denormalize data to optimize our read query:
 	type: 'Task',
 	taskId: '2',
 	description: 'Finalize walkthrough doc',
-	categories: [
-		{ categoryId: 3, categoryName: 'Work'},
-		{ categoryId: 5, categoryName: 'Indoors'}
+	**categories: [**
+		**{ categoryId: 3, categoryName: 'Work'},**
+		**{ categoryId: 5, categoryName: 'Indoors'}**
 	]
 }
 ```
@@ -338,8 +337,8 @@ Here's what our *unbounded* Task+Notes document might look like:
 	taskId: '2',
 	description: 'Finalize walkthrough doc',
 	notes: [
-		{ timestamp: '', Note: 'Reviewed relational model w/Ryan'},
-		{ timestamp: '', Note: 'Reviewed document model w/Ryan'}
+		{ timestamp: '', note: 'Reviewed relational model w/Ryan'},
+		{ timestamp: '', note: 'Reviewed document model w/Ryan'}
 	]
 }
 ```
@@ -378,7 +377,7 @@ could optionally store an array of Note Id's into the Task document.
 	type: 'Task',
 	taskId: '2',
 	description: 'Finalize walkthrough doc',
-	notes: [ { noteId: 1}, {noteId: 5}, {noteId: 7} ]
+	notes: [ 1, 5, 7 ]
 }
 
 ### Note highlights within Task
@@ -391,7 +390,7 @@ this bit of denormalization, storing something about the most recent note (or ar
 	type: 'Task',
 	taskId: '2',
 	description: 'Finalize walkthrough doc',
-	notes: [ { noteId: 1}, {noteId: 5}, {noteId: 7} ],
+	notes: [ 1, 5, 7 ],
     mostRecentNotes: [
     	{ noteId: 1, timestamp: '', summary: "I reviewd..."}
     ]
@@ -439,13 +438,13 @@ Putting this all together:
 	type: 'Person',
 	personId: 1,
 	username: 'David',
-	tasks: [ {taskId: 1}, {taskId: 2} ]
+	tasks: [ 1, 2 ]
 }
 {
 	type: 'Person',
 	personId: 2,
 	username: 'Ryan',
-	assistWithTasks: [ {taskId:2} ]
+	assistWithTasks: [ 2 ]
 }
 {
 	type: 'Task',
@@ -457,6 +456,7 @@ Putting this all together:
 		{ categoryId: 3, categoryName: 'Work'},
 		{ categoryId: 5, categoryName: 'Indoors'}
 	],
+	notes: [ 1, 2 ],
     mostRecentNotes: [
     	{ noteId: 1, timestamp: '', summary: "I reviewd relational model w/Ryan..."}
     ]
