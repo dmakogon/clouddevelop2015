@@ -61,7 +61,7 @@ inner join task t on p.Id=t.PersonId
 inner join TaskCategories tc on tc.TaskId = t.Id
 inner join Category c on tc.CategoryId = c.Id
 inner join Status s on t.TaskStatusId = s.Id
-where p.username='David'
+where p.username="David"
 ```
 
 ### Getting the list of people with tasks assigned
@@ -75,7 +75,7 @@ inner join Task t on t.PersonId = p.Id
 Now, find people who are tagged as assistants
 
 ```
-select distinct p.username as 'Assistant',t.description as 'Assisting with' from Person p
+select distinct p.username as "Assistant",t.description as "Assisting with" from Person p
 inner join TaskAssistants ta on ta.PersonId = p.Id
 inner join Task t on ta.TaskId = t.Id
 ```
@@ -83,7 +83,7 @@ inner join Task t on ta.TaskId = t.Id
 
 Ok, so we have many tables comprising our Person- and Task- database. Let's now 
 think in terms of Document models. We'll take things a step at a time, looking at
-various options and pros/cons. The hope is that we'll find a workable model.
+various options and pros/cons. The hope is that we"ll find a workable model.
 
 ## Our two most important entities: Person and Task
 
@@ -95,19 +95,19 @@ think about this in terms of JSON, there are two obvious first-cut approaches:
 This is similar to a relational junction table:
 ```
 {
-	type: 'Person',
-	personId: 1,
+	"type": "Person",
+	"id": "Person1",
 	...
 }
 {
-	type: 'Task',
-	taskId: 2,
+	"type": "Task",
+	"id": "Task2",
 	...
 }
 {
-	Type: 'TaskAssignment',
-	taskId: 2,
-	personId: 1
+	"type": "TaskAssignment",
+	"taskId": "Task2",
+	"personId": "Person1"
 }
 ```
 This approach keeps Persons and Tasks completely separate. However, this now
@@ -123,19 +123,19 @@ Imagine each Person document contains an array of tasks:
 
 ```
 {
-	type: 'Person',
-	personId: 1,
-	username: 'David',
-	tasks: [
+	"type": "Person",
+	"id": "Person1",
+	"username": "David",
+	"tasks": [
 		{
-			taskId: 1,
-			description: 'Pack for CloudDevelop',
-			status: 'In progress'
+			"id": "Task1",
+			"description": "Pack for CloudDevelop",
+			"status": "In progress"
 		},
 		{
-			taskId: 2,
-			description: 'Finalize walkthrough doc',
-			status: 'Complete'
+			"id": "Task2",
+			"description": "Finalize walkthrough doc",
+			"status": "Complete"
 		}
 	]
 }
@@ -149,10 +149,10 @@ Regarding the unbounded array: We could reduce risk by storing an array of Task 
 within a Person document, and moving Tasks to separate documents:
 ```
 {
-	type: 'Person',
-	personId: 1,
-	username: 'David',
-	tasks: [ 1, 2 ]
+	"type": "Person",
+	"id": "Person1",
+	"username": "David",
+	"tasks": [ "Task1", "Task2" ]
 }
 ```
 This is much more efficient in terms of Person documents storage. However,
@@ -174,11 +174,11 @@ a single value or an array (yes, this is potentially unbounded, but for tasks, n
 a realistic concern).
 ```
 {
-	type: 'Task',
-	taskId: 2,
-	personId: 1,
-	assistantIds: [ 2 ],
-	description: 'Finalize walkthrough doc'
+	"type": "Task",
+	"taskId": "Task2",
+	"personId": "Person1",
+	assistants: [ "Person2" ],
+	"description": "Finalize walkthrough doc"
 }
 ```
 This approach seems a bit more reasonable, but it requires another transaction if you
@@ -186,16 +186,16 @@ need to print out the Person's name, for instance. In this case, it might be wor
 denormalizing a bit:
 ```
 {
-	type: 'Task',
-	taskId: '2',
-	personId: '1',
-	**personUsername: 'David'**,
-	**assistants: [ {personId: '2', username: 'Ryan'} ],**
+	"type": "Task",
+	"taskId": "Task2",
+	"personId": "Person1",
+	**"username": "David"**,
+	**assistants: [ {"id": "Person2", "username": "Ryan"} ]**
 	...
 }
 ```
 
-This approach (putting the person's ID in the task)
+This approach (putting the person"s ID in the task)
 is equivalent to the PersonId foreign key in the relational Task table.
 
 ### Queries: approach 3
@@ -206,9 +206,9 @@ TBD
 ### Which to choose?
 
 Looking at all three approaches, approach #3 in general seems to fit our needs
-the best. If there's ever a need to have speedier access to task details for a
+the best. If there"s ever a need to have speedier access to task details for a
 given Person, #3 could be combined with approach #3, storing a Task Id array
-within a Person document. For now, we'll stick with approach #3.
+within a Person document. For now, we"ll stick with approach #3.
 
 
 ## Task categories
@@ -239,47 +239,47 @@ Note: With the relational tables, we have one row per task category. We could
 certainly do that with Documents, but since we have the ability to contain
 an array of IDs within a document, it seems to make sense to do so.
 
-We'd then have something like this:
+We"d then have something like this:
 
 ```
 {
-	type: 'Category',
-	categoryId: '3',
-	description: 'Work'
+	"type": "Category",
+	categoryId: "3",
+	"description": "Work"
 }
 {
-	type: 'Category',
-	categoryId: '5',
-	description: 'Indoors'
+	"type": "Category",
+	categoryId: "5",
+	"description": "Indoors"
 }
 {
-	type: 'TaskCategories'
-	taskId: '2'
-	CategoryIds: [ '3', '5' ]
+	"type": "TaskCategories"
+	"id": "2"
+	CategoryIds: [ "3", "5" ]
 }
 ```
 However:
  - This would require two lookups.
- - To find all tasks within a given category, you'd need to search each array
+ - To find all tasks within a given category, you"d need to search each array
    of TaskCategories for a given category ID (and then query each Task by Id to get
    task details).
 
 ### Task Categories: Approach 2 - Task with category IDs
 
 As an alternative:
- - Task document, with array of Category ID's
- - Since there's a bounded number of categories, we don't have an issue storing them in
+ - Task document, with array of Category ID"s
+ - Since there"s a bounded number of categories, we don"t have an issue storing them in
 the main document.
 
 ```
 {
-	Type: 'Task',
-	taskId: '2',
-	description: 'Finalize walkthrough doc',
-	categories: [ '3', '5' ]
+	"type": "Task",
+	"id": "2",
+	"description": "Finalize walkthrough doc",
+	categories: [ "3", "5" ]
 }
 ```
-Approach #2 still requires searching each task's array, but there'd be no need
+Approach #2 still requires searching each task"s array, but there"d be no need
 for additional queries to retrieve Task details.
 
 Optionally, we could denormalize data to optimize our read query:
@@ -287,24 +287,24 @@ Optionally, we could denormalize data to optimize our read query:
 
 ```
 {
-	type: 'Task',
-	taskId: '2',
-	description: 'Finalize walkthrough doc',
+	"type": "Task",
+	"id": "2",
+	"description": "Finalize walkthrough doc",
 	**categories: [**
-		**{ categoryId: 3, categoryName: 'Work'},**
-		**{ categoryId: 5, categoryName: 'Indoors'}**
+		**{ categoryId: 3, categoryName: "Work"},**
+		**{ categoryId: 5, categoryName: "Indoors"}**
 	]
 }
 ```
 Denormalization has a slight downside: If a category name changed, you might need to
 find all tasks with that category, and update the task document. If you
 choose to keep categories as is, and just make them *disabled* in lieu of a
-newer category, then you'd never have the data update issue.
+newer category, then you"d never have the data update issue.
 
 
 ### Queries: Task categories
 
-#### Retrieve a person's tasks for a given category
+#### Retrieve a person"s tasks for a given category
 
 TBD
 
@@ -312,33 +312,33 @@ TBD
 
 TBD
 
-#### Retrieve a person's task categories
+#### Retrieve a person"s task categories
 
 TBD
 
 ## Task notes
 
-Notes are interesting, in that they are *unbounded*. That is, there's no limit 
+Notes are interesting, in that they are *unbounded*. That is, there"s no limit 
 to the number of notes that a Task may have. Liken this to comments on a blog post:
-Unless there's a specific reason to limit this in the app, the database must
+Unless there"s a specific reason to limit this in the app, the database must
 accomodate the unbounded condition.
 
 The challenge is that Documents are capped in size. With DocumentDB, that size is 512K.
-While it's not very likely you'll exceed this limit while storing a Task, it's not difficult
+While it"s not very likely you"ll exceed this limit while storing a Task, it"s not difficult
 to imagine this happening.
 
 ### Task notes: Approach 1 - Array within Task
 
-Here's what our *unbounded* Task+Notes document might look like:
+Here"s what our *unbounded* Task+Notes document might look like:
 
 ```
 {
-	type: 'Task',
-	taskId: '2',
-	description: 'Finalize walkthrough doc',
+	"type": "Task",
+	"id": "2",
+	"description": "Finalize walkthrough doc",
 	notes: [
-		{ personId: '1', note: 'Reviewed relational model w/Ryan'},
-		{ personId: '1', note: 'Reviewed document model w/Ryan'}
+		{ "id": "1", "note": "Reviewed relational model w/Ryan"},
+		{ "id": "1", "note": "Reviewed document model w/Ryan"}
 	]
 }
 ```
@@ -351,33 +351,33 @@ possible).
 To avoid the unbounded-array issue, Notes may be stored in separate Documents:
 ```
 {
-	type: 'Task',
-	taskId: '2',
-	description: 'Finalize walkthrough doc'
+	"type": "Task",
+	"id": "2",
+	"description": "Finalize walkthrough doc"
 }
 {
-	type: 'Note',
-	personId: '1',
-	noteId: '1',
-	taskId: '2',
-	note: 'Reviewed relational model w/Ryan'
+	"type": "Note",
+	"id": "1",
+	noteId: "1",
+	"id": "2",
+	"note": "Reviewed relational model w/Ryan"
 }
 ```
-We now have two queries if we want a task plus notes. However, if notes aren't
+We now have two queries if we want a task plus notes. However, if notes aren"t
 often viewed immediately (e.g. you merely list the Task names, and then show
-notes only when a task's details are shown), this might not really impact
+notes only when a task"s details are shown), this might not really impact
 performance.
 
-### Note Id's within Task
+### Note Id"s within Task
 
 If you needed to quickly discover how many notes a particular task had (if any), you
-could optionally store an array of Note Id's into the Task document.
+could optionally store an array of Note Id"s into the Task document.
 
 {
-	type: 'Task',
-	taskId: '2',
-	description: 'Finalize walkthrough doc',
-	notes: [ '1', '5', '7' ]
+	"type": "Task",
+	"id": "2",
+	"description": "Finalize walkthrough doc",
+	notes: [ "1", "5", "7" ]
 }
 
 ### Note highlights within Task
@@ -387,12 +387,12 @@ page, you may want to show the most recent note (or at least part of it). So... 
 this bit of denormalization, storing something about the most recent note (or array of most recent notes)
 
 {
-	type: 'Task',
-	taskId: '2',
-	description: 'Finalize walkthrough doc',
-	notes: [ '1', '5', '7' ],
+	"type": "Task",
+	"id": "2",
+	"description": "Finalize walkthrough doc",
+	notes: [ "1", "5", "7" ],
     mostRecentNotes: [
-    	{ noteId: '1', timestamp: '', summary: "I reviewd..."}
+    	{ noteId: "1", timestamp: "", summary: "I reviewd..."}
     ]
 }
 
@@ -410,11 +410,11 @@ So... we have several options for our final model, each with various tradeoffs a
  - Unbounded vs bounded
  - Denormalization
 
-There's really no single correct way to model this data, but here's a strawman example,
+There"s really no single correct way to model this data, but here"s a strawman example,
 based on the following decisions:
  - Task-first approach. That is, approach #2 from above, where each task references
  the person(s) working on the task.
- - Task categories referenced as an array of category ID's within a Task
+ - Task categories referenced as an array of category ID"s within a Task
  - Task notes stored as separate documents. This gives us leeway to add other 
  information to notes, and to view them separately
 
@@ -425,47 +425,47 @@ Putting this all together:
 
 ```
 {
-	type: 'Category',
-	categoryId: '3',
-	description: 'Work'
+	"type": "Category",
+	"id": "Category3",
+	"description": "Work"
 }
 {
-	type: 'Category',
-	categoryId: '5',
-	description: 'Indoors'
+	"type": "Category",
+	"id": "Category5",
+	"description": "Indoors"
 }
 {
-	type: 'Person',
-	personId: '1',
-	username: 'David',
-	tasks: [ '1', '2' ]
+	"type": "Person",
+	"id": "Person1",
+	"username": "David",
+	"tasks": [ "Task1", "Task2" ]
 }
 {
-	type: 'Person',
-	personId: '2',
-	username: 'Ryan',
-	assistWithTasks: [ '2' ]
+	"type": "Person",
+	"id": "Person2",
+	"username": "Ryan",
+	"assistWithTasks": [ "Task2" ]
 }
 {
-	type: 'Task',
-	taskId: '2',
-	person: { personId:1, username: 'David', assignedDate: ''},
-	assistants: [ { personId: '2', username: 'Ryan', assignedDate: '...' } ],
-	description: 'Finalize walkthrough doc',
-	categories: [
-		{ categoryId: '3', categoryName: 'Work'},
-		{ categoryId: '5', categoryName: 'Indoors'}
+	"type": "Task",
+	"id": "Task2",
+	"person": { "id": "Person1", "username": "David" },
+	"assistants": [ { "id": "Person2", "username": "Ryan" } ],
+	"description": "Finalize walkthrough doc",
+	"categories": [
+		{ "id": "Category3", "description": "Work"},
+		{ "id": "Category5", "description": "Indoors"}
 	],
-	notes: [ '1', '2' ],
-    mostRecentNotes: [
-    	{ noteId: '1', summary: 'I reviewd relational model w/Ryan...'}
+	"notes": [ "Note1", "Note2" ],
+    "mostRecentNotes": [
+    	{ "id": "Note1", summary: "I reviewd relational model w/Ryan..."}
     ]
 }
 {
-	type: 'Note',
-	taskId: '2',
-	person: { personId: '1', username: 'David'},
-	Note: 'I reviewed relational model w/Ryan and blah blah foo bar something really long goes in to this note. Yipoeee Yay.'
+	"type": "Note",
+	"id": "Note2",
+	"person": { "id": "Person1", "username": "David"},
+	"note": "I reviewed relational model w/Ryan and blah blah foo bar something really long goes in to this note. Yay."
 }
 ```
 
