@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>Microsoft.Azure.DocumentDB</id>
+    <version>1.5.0</version>
+    <title>Microsoft Azure DocumentDB Client Library</title>
+    <authors>Microsoft</authors>
+    <owners>Microsoft</owners>
+    <licenseUrl>http://go.microsoft.com/fwlink/?LinkID=509837</licenseUrl>
+    <projectUrl>http://go.microsoft.com/fwlink/?LinkID=509927</projectUrl>
+    <iconUrl>http://go.microsoft.com/fwlink/?LinkID=288890</iconUrl>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <description>This client library enables client applications to connect to the Azure DocumentDB Service. Azure DocumentDB is a NoSQL Document Database hosted in Microsoft Azure and delivered as a service. For more information, refer to http://azure.microsoft.com/en-us/services/documentdb/.</description>
+    <summary>.NET Client library for Azure DocumentDB</summary>
+    <copyright>Copyright � Microsoft Corporation</copyright>
+    <tags>microsoft azure documentdb docdb nosql azureofficial</tags>
+    <dependencies>
+      <dependency id="Newtonsoft.Json" version="5.0.7" />
+    </dependencies>
+  </metadata>
+</package>

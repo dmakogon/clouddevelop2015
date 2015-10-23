@@ -1,0 +1,11 @@
+C:\Development\github\dmakogon\clouddevelop2015\netquery\clouddevelopquery\clouddevelopquery\bin\Debug\clouddevelopquery.exe.config
+C:\Development\github\dmakogon\clouddevelop2015\netquery\clouddevelopquery\clouddevelopquery\bin\Debug\clouddevelopquery.exe
+C:\Development\github\dmakogon\clouddevelop2015\netquery\clouddevelopquery\clouddevelopquery\bin\Debug\clouddevelopquery.pdb
+C:\Development\github\dmakogon\clouddevelop2015\netquery\clouddevelopquery\clouddevelopquery\bin\Debug\Microsoft.Azure.Documents.Client.dll
+C:\Development\github\dmakogon\clouddevelop2015\netquery\clouddevelopquery\clouddevelopquery\bin\Debug\Newtonsoft.Json.dll
+C:\Development\github\dmakogon\clouddevelop2015\netquery\clouddevelopquery\clouddevelopquery\bin\Debug\Microsoft.Azure.Documents.Client.xml
+C:\Development\github\dmakogon\clouddevelop2015\netquery\clouddevelopquery\clouddevelopquery\bin\Debug\Newtonsoft.Json.xml
+C:\Development\github\dmakogon\clouddevelop2015\netquery\clouddevelopquery\clouddevelopquery\obj\Debug\clouddevelopquery.csprojResolveAssemblyReference.cache
+C:\Development\github\dmakogon\clouddevelop2015\netquery\clouddevelopquery\clouddevelopquery\obj\Debug\clouddevelopquery.exe
+C:\Development\github\dmakogon\clouddevelop2015\netquery\clouddevelopquery\clouddevelopquery\obj\Debug\clouddevelopquery.pdb
+C:\Development\github\dmakogon\clouddevelop2015\netquery\clouddevelopquery\clouddevelopquery\bin\Debug\appSettings.config
