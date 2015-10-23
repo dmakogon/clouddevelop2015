@@ -244,18 +244,18 @@ We'd then have something like this:
 ```
 {
 	type: 'Category',
-	categoryId: 3,
+	categoryId: '3',
 	description: 'Work'
 }
 {
 	type: 'Category',
-	categoryId: 5,
+	categoryId: '5',
 	description: 'Indoors'
 }
 {
 	type: 'TaskCategories'
-	taskId: 2
-	CategoryIds: [3,5]
+	taskId: '2'
+	CategoryIds: [ '3', '5' ]
 }
 ```
 However:
@@ -276,7 +276,7 @@ the main document.
 	Type: 'Task',
 	taskId: '2',
 	description: 'Finalize walkthrough doc',
-	categories: [ 3, 5 ]
+	categories: [ '3', '5' ]
 }
 ```
 Approach #2 still requires searching each task's array, but there'd be no need
@@ -337,8 +337,8 @@ Here's what our *unbounded* Task+Notes document might look like:
 	taskId: '2',
 	description: 'Finalize walkthrough doc',
 	notes: [
-		{ timestamp: '', note: 'Reviewed relational model w/Ryan'},
-		{ timestamp: '', note: 'Reviewed document model w/Ryan'}
+		{ personId: '1', note: 'Reviewed relational model w/Ryan'},
+		{ personId: '1', note: 'Reviewed document model w/Ryan'}
 	]
 }
 ```
@@ -357,9 +357,9 @@ To avoid the unbounded-array issue, Notes may be stored in separate Documents:
 }
 {
 	type: 'Note',
-	noteId: 1,
-	taskId: 2,
-	timestamp: 111,
+	personId: '1',
+	noteId: '1',
+	taskId: '2',
 	note: 'Reviewed relational model w/Ryan'
 }
 ```
@@ -377,7 +377,7 @@ could optionally store an array of Note Id's into the Task document.
 	type: 'Task',
 	taskId: '2',
 	description: 'Finalize walkthrough doc',
-	notes: [ 1, 5, 7 ]
+	notes: [ '1', '5', '7' ]
 }
 
 ### Note highlights within Task
@@ -390,9 +390,9 @@ this bit of denormalization, storing something about the most recent note (or ar
 	type: 'Task',
 	taskId: '2',
 	description: 'Finalize walkthrough doc',
-	notes: [ 1, 5, 7 ],
+	notes: [ '1', '5', '7' ],
     mostRecentNotes: [
-    	{ noteId: 1, timestamp: '', summary: "I reviewd..."}
+    	{ noteId: '1', timestamp: '', summary: "I reviewd..."}
     ]
 }
 
@@ -426,25 +426,25 @@ Putting this all together:
 ```
 {
 	type: 'Category',
-	categoryId: 3,
+	categoryId: '3',
 	description: 'Work'
 }
 {
 	type: 'Category',
-	categoryId: 5,
+	categoryId: '5',
 	description: 'Indoors'
 }
 {
 	type: 'Person',
-	personId: 1,
+	personId: '1',
 	username: 'David',
-	tasks: [ 1, 2 ]
+	tasks: [ '1', '2' ]
 }
 {
 	type: 'Person',
-	personId: 2,
+	personId: '2',
 	username: 'Ryan',
-	assistWithTasks: [ 2 ]
+	assistWithTasks: [ '2' ]
 }
 {
 	type: 'Task',
@@ -453,19 +453,18 @@ Putting this all together:
 	assistants: [ { personId: 2, username: 'Ryan', assignedDate: '' } ],
 	description: 'Finalize walkthrough doc',
 	categories: [
-		{ categoryId: 3, categoryName: 'Work'},
-		{ categoryId: 5, categoryName: 'Indoors'}
+		{ categoryId: '3', categoryName: 'Work'},
+		{ categoryId: '5', categoryName: 'Indoors'}
 	],
-	notes: [ 1, 2 ],
+	notes: [ '1', '2' ],
     mostRecentNotes: [
-    	{ noteId: 1, timestamp: '', summary: "I reviewd relational model w/Ryan..."}
+    	{ noteId: '1', summary: 'I reviewd relational model w/Ryan...'}
     ]
 }
 {
 	type: 'Note',
-	taskId: 2,
-	person: { personId: 1, username: 'David'},
-	Timestamp: '',
+	taskId: '2',
+	person: { personId: '1', username: 'David'},
 	Note: 'I reviewed relational model w/Ryan and blah blah foo bar something really long goes in to this note. Yipoeee Yay.'
 }
 ```
