@@ -188,9 +188,9 @@ denormalizing a bit:
 {
 	type: 'Task',
 	taskId: '2',
-	personId: 1,
+	personId: '1',
 	**personUsername: 'David'**,
-	**assistants: [ {personId: 2, username: 'Ryan'} ],**
+	**assistants: [ {personId: '2', username: 'Ryan'} ],**
 	...
 }
 ```
@@ -450,7 +450,7 @@ Putting this all together:
 	type: 'Task',
 	taskId: '2',
 	person: { personId:1, username: 'David', assignedDate: ''},
-	assistants: [ { personId: 2, username: 'Ryan', assignedDate: '' } ],
+	assistants: [ { personId: '2', username: 'Ryan', assignedDate: '...' } ],
 	description: 'Finalize walkthrough doc',
 	categories: [
 		{ categoryId: '3', categoryName: 'Work'},
