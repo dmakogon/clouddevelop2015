@@ -8,6 +8,28 @@ learn about Document Database data considerations.
 We'll take a very simple relational model and walk through several refactorings
 as we develop a Document model.
 
+## Interesting stuff to know
+
+### How to set up database account
+
+ - account creation
+ - keys
+ - create database
+ - create collection
+
+### How to query
+
+ - Portal (if you have an Azure subscription)
+ - DocDBStudio (Windows-only)
+ - code (we'll show node, .net)
+
+### How to measure queries
+ - RU costs (in portal, in DocDBStudio, and in code)
+
+### Discussion points
+ - Collection per type?
+
+
 # The Relational Model
 
 For the workshop, we'll tackle a Task database. And to make it a bit more interesting,
@@ -64,30 +86,55 @@ Ok, so we have many tables comprising our Person- and Task- database. Let's now
 think in terms of Document models. We'll take things a step at a time, looking at
 various options and pros/cons. The hope is that we'll find a workable model.
 
-## Our two most important entities: People and Tasks
+## Our two most important entities: Person and Task
 
 This data model is all about tasks, and the people who are assigned to them. If you
 think about this in terms of JSON, there are two obvious first-cut approaches:
 
-### First-cut approach 1: People containing task lists
+### Person+Task approach 1: Separate Person and Task documents
+
+This is similar to a relational junction table:
+```
+{
+	type: 'Person',
+	personId: 1,
+	...
+}
+{
+	type: 'Task',
+	taskId: 2,
+	...
+}
+{
+	Type: 'TaskAssignment',
+	taskId: 2,
+	personId: 1
+}
+```
+This approach keeps Persons and Tasks completely separate. However, this now
+requires up to *three* reads / writes per operation. And it really doesn't buy
+much in terms of usefulness.
+
+### Queries: approach 1
+
+TBD
+### Person+Task approach 2: People containing task lists
 
 Imagine each Person document contains an array of tasks:
 
 ```
 {
-	Type: 'Person',
-	Id: 1,
-	Username: 'David',
-	Tasks: [
+	type: 'Person',
+	personId: 1,
+	username: 'David',
+	tasks: [
 		{
-			Description: 'Pack for CloudDevelop',
-			Status: 'In progress',
-			Categories: []
+			description: 'Pack for CloudDevelop',
+			status: 'In progress'
 		},
 		{
-			Description: 'Finalize walkthrough doc',
-			Status: 'Complete',
-			Categories: []
+			description: 'Finalize walkthrough doc',
+			status: 'Complete'
 		}
 	]
 }
@@ -101,10 +148,10 @@ Regarding the unbounded array: We could reduce risk by storing an array of Task 
 within a Person document:
 ```
 {
-	Type: 'Person',
-	Id: 1,
-	Username: 'David',
-	Tasks: [1,2]
+	type: 'Person',
+	personId: 1,
+	username: 'David',
+	tasks: [ {taskId: 1}, {taskId: 2} ]
 }
 ```
 This is much more efficient in terms of Person documents storage. However,
@@ -112,11 +159,11 @@ it would require an additional read to fetch Task info (stored in separate
 documents). Same for writes: Each
 new task would generate an insert (Task) and an update (Person).
 
-### Queries: approach 1
+### Queries: approach 2
 
 TBD
 
-### First-cut approach 2: Task lists containing Persons
+### Person+Task approach 3: Task lists containing Persons
 
 Flipping the model around, we could have the following, where Task is the top-level
 (containing) document, which has a reference to the assigned person. Note: In the
@@ -126,15 +173,11 @@ a single value or an array (yes, this is potentially unbounded, but for tasks, n
 a realistic concern).
 ```
 {
-	Type: 'Task',
-	Id: '2',
-	PersonId: 1,
-	AssistantIds: [2,3],
-	Description: 'Finalize walkthrough doc',
-	Categories: [
-		{ Id: 3, CategoryName: 'Work'},
-		{ Id: 5, CategoryName: 'Indoors'}
-	]
+	type: 'Task',
+	taskId: 2,
+	personId: 1,
+	assistantIds: [ {personId: 2}, {personId: 3} ],
+	description: 'Finalize walkthrough doc'
 }
 ```
 This approach seems a bit more reasonable, but it requires another transaction if you
@@ -142,57 +185,31 @@ need to print out the Person's name, for instance. In this case, it might be wor
 denormalizing a bit:
 ```
 {
-	Type: 'Task',
-	Id: '2',
-	PersonId: 1,
-	PersonUsername: 'David',
+	type: 'Task',
+	taskId: '2',
+	personId: 1,
+	**personUsername: 'David'**,
 	...
 }
 ```
 
-Puting on our *Relational* thinking cap: This approach (putting the person's ID in the task)
+This approach (putting the person's ID in the task)
 is equivalent to the PersonId foreign key in the relational Task table.
 
 
-
-### Queries: approach 2
-
-TBD
-
-### First-cut approach 3: Separate Tasks and Persons
-
-This is similar to a join table:
-```
-{
-	Type: 'Task',
-	Id: '2',
-	...
-}
-{
-	Type: 'Person',
-	Id: 1,
-	...
-}
-{
-	Type: 'TaskAssignment',
-	TaskId: 2,
-	PersonId: 1
-}
-```
-This approach keeps Tasks and Persons completely separate. However, this now
-requires up to *three* reads / writes per operation. And it really doesn't buy
-much in terms of usefulness.
 
 ### Queries: approach 3
 
 TBD
 
+
+
 ### Which to choose?
 
-Looking at all three approaches, approach #2 in general seems to fit our needs
+Looking at all three approaches, approach #3 in general seems to fit our needs
 the best. If there's ever a need to have speedier access to task details for a
-given Person, #2 could be combined with approach #1, storing a Task Id array
-within a Person document. For now, we'll stick with approach #2.
+given Person, #3 could be combined with approach #3, storing a Task Id array
+within a Person document. For now, we'll stick with approach #3.
 
 
 ## Task categories
@@ -215,10 +232,33 @@ TaskId | CategoryId
 
 ### Task Categories: Approach 1 - TaskCategories
 
-In a document model, we *could* keep the same model as our relational model:
+In a document model, we could have something similar to our relational model:
  - Task document, with no categories
  - A TaskCategories document, with a Task ID and array of Category id's
 
+Note: With the relational tables, we have one row per task category. We could
+certainly do that with Documents, but since we have the ability to contain
+an array of IDs within a document, it seems to make sense to do so.
+
+We'd then have something like this:
+
+```
+{
+	type: 'Category',
+	categoryId: 3,
+	description: 'Work'
+}
+{
+	type: 'Category',
+	categoryId: 5,
+	description: 'Indoors'
+}
+{
+	type: 'TaskCategories'
+	taskId: 2
+	CategoryIds: [3,5]
+}
+```
 However:
  - This would require two lookups.
  - To find all tasks within a given category, you'd need to search each array
@@ -232,30 +272,37 @@ As an alternative:
  - Since there's a bounded number of categories, we don't have an issue storing them in
 the main document.
 
+```
+{
+	Type: 'Task',
+	taskId: '2',
+	description: 'Finalize walkthrough doc',
+	categories: [ {categoryId: 3}, {categoryId: 5} ]
+}
+```
 Approach #2 still requires searching each task's array, but there'd be no need
 for additional queries to retrieve Task details.
 
 Optionally, we could denormalize data to optimize our read query:
  - Task document, with array of Category ID + Category name
 
+```
+{
+	type: 'Task',
+	taskId: '2',
+	description: 'Finalize walkthrough doc',
+	categories: [
+		{ categoryId: 3, categoryName: 'Work'},
+		{ categoryId: 5, categoryName: 'Indoors'}
+	]
+}
+```
 Denormalization has a slight downside: If a category name changed, you might need to
 find all tasks with that category, and update the task document. If you
 choose to keep categories as is, and just make them *disabled* in lieu of a
 newer category, then you'd never have the data update issue.
 
-So, our new document, with denormalized Category names, might look like:
 
-```
-{
-	Type: 'Task',
-	Id: '2',
-	Description: 'Finalize walkthrough doc',
-	Categories: [
-		{ Id: 3, CategoryName: 'Work'},
-		{ Id: 5, CategoryName: 'Indoors'}
-	]
-}
-```
 ### Queries: Task categories
 
 #### Retrieve a person's tasks for a given category
@@ -287,12 +334,12 @@ Here's what our *unbounded* Task+Notes document might look like:
 
 ```
 {
-	Type: 'Task',
-	Id: '2',
-	Description: 'Finalize walkthrough doc',
-	Notes: [
-		{ Timestamp: 111, Note: 'Reviewed relational model w/Ryan'},
-		{ Timestamp: 222, Note: 'Reviewed document model w/Ryan'}
+	type: 'Task',
+	taskId: '2',
+	description: 'Finalize walkthrough doc',
+	notes: [
+		{ timestamp: '', Note: 'Reviewed relational model w/Ryan'},
+		{ timestamp: '', Note: 'Reviewed document model w/Ryan'}
 	]
 }
 ```
@@ -305,21 +352,50 @@ possible).
 To avoid the unbounded-array issue, Notes may be stored in separate Documents:
 ```
 {
-	Type: 'Task',
-	Id: '2',
-	Description: 'Finalize walkthrough doc'
+	type: 'Task',
+	taskId: '2',
+	description: 'Finalize walkthrough doc'
 }
 {
-	Type: 'Note',
-	TaskId: 2,
-	Timestamp: 111,
-	Note: 'Reviewed relational model w/Ryan'
+	type: 'Note',
+	noteId: 1,
+	taskId: 2,
+	timestamp: 111,
+	note: 'Reviewed relational model w/Ryan'
 }
 ```
 We now have two queries if we want a task plus notes. However, if notes aren't
 often viewed immediately (e.g. you merely list the Task names, and then show
 notes only when a task's details are shown), this might not really impact
 performance.
+
+### Note Id's within Task
+
+If you needed to quickly discover how many notes a particular task had (if any), you
+could optionally store an array of Note Id's into the Task document.
+
+{
+	type: 'Task',
+	taskId: '2',
+	description: 'Finalize walkthrough doc',
+	notes: [ { noteId: 1}, {noteId: 5}, {noteId: 7} ]
+}
+
+### Note highlights within Task
+
+Just like online merchants display one or two relevant product reviews on the summary
+page, you may want to show the most recent note (or at least part of it). So... consider
+this bit of denormalization, storing something about the most recent note (or array of most recent notes)
+
+{
+	type: 'Task',
+	taskId: '2',
+	description: 'Finalize walkthrough doc',
+	notes: [ { noteId: 1}, {noteId: 5}, {noteId: 7} ],
+    mostRecentNotes: [
+    	{ noteId: 1, timestamp: '', summary: "I reviewd..."}
+    ]
+}
 
 ### Queries: Task notes
 
@@ -330,7 +406,7 @@ TBD
 # Putting it all together - our Document model
 
 So... we have several options for our final model, each with various tradeoffs around:
- - Embed vs reference
+ - Embed vs reference (and volatility)
  - Number of reads / writes required
  - Unbounded vs bounded
  - Denormalization
@@ -343,47 +419,54 @@ based on the following decisions:
  - Task notes stored as separate documents. This gives us leeway to add other 
  information to notes, and to view them separately
 
+The way you start might not be the way you end up:
+ - Imagine building a Task-first system and finding out, through telemetry,
+ people are using it in a Person-first way
 Putting this all together:
 
 ```
 {
-	Type: 'Category',
-	Id: 3,
-	Description: 'Work'
+	type: 'Category',
+	categoryId: 3,
+	description: 'Work'
 }
 {
-	Type: 'Category',
-	Id: 5,
-	Description: 'Indoors'
+	type: 'Category',
+	categoryId: 5,
+	description: 'Indoors'
 }
 {
-	Type: 'Person',
-	Id: 1,
-	Username: 'David',
-	TaskIds: [1,2]
+	type: 'Person',
+	personId: 1,
+	username: 'David',
+	tasks: [ {taskId: 1}, {taskId: 2} ]
 }
 {
-	Type: 'Person',
-	Id: 2,
-	Username: 'Ryan',
-	AssistWithTaskIds: [2]
+	type: 'Person',
+	personId: 2,
+	username: 'Ryan',
+	assistWithTasks: [ {taskId:2} ]
 }
 {
-	Type: 'Task',
-	Id: '2',
-	PersonId: '1',
-	AssistantIds: ['2'],
-	Description: 'Finalize walkthrough doc',
-	Categories: [
-		{ Id: 3, CategoryName: 'Work'},
-		{ Id: 5, CategoryName: 'Indoors'}
-	]
+	type: 'Task',
+	taskId: '2',
+	person: { personId:1, username: 'David', assignedDate: ''},
+	assistants: [ { personId: 2, username: 'Ryan', assignedDate: '' } ],
+	description: 'Finalize walkthrough doc',
+	categories: [
+		{ categoryId: 3, categoryName: 'Work'},
+		{ categoryId: 5, categoryName: 'Indoors'}
+	],
+    mostRecentNotes: [
+    	{ noteId: 1, timestamp: '', summary: "I reviewd relational model w/Ryan..."}
+    ]
 }
 {
-	Type: 'Note',
-	TaskId: 2,
-	Timestamp: 111,
-	Note: 'Reviewed relational model w/Ryan'
+	type: 'Note',
+	taskId: 2,
+	person: { personId: 1, username: 'David'},
+	Timestamp: '',
+	Note: 'I reviewed relational model w/Ryan and blah blah foo bar something really long goes in to this note. Yipoeee Yay.'
 }
 ```
 
