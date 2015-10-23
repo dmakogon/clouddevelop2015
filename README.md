@@ -398,9 +398,11 @@ this bit of denormalization, storing something about the most recent note (or ar
 
 ### Queries: Task notes
 
-#### Retrieve a task and all associated notes, in reverse-chrono order
+#### Retrieve all notes for a task, in reverse-chrono order
 
-TBD
+```
+SELECT * FROM c where c.taskId = "Task2" ORDER BY c.timestamp DESC
+```
 
 # Putting it all together - our Document model
 
