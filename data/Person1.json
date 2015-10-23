@@ -1,0 +1,6 @@
+{
+	"type": "Person",
+	"id": "Person1",
+	"username": "David",
+	"tasks": [ "Task1", "Task2" ]
+}

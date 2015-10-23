@@ -1,0 +1,6 @@
+{
+	"type": "Person",
+	"id": "Person2",
+	"username": "Ryan",
+	"assistWithTasks": [ "Task2" ]
+}

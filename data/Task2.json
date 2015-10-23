@@ -1,0 +1,15 @@
+{
+	"type": "Task",
+	"id": "Task2",
+	"person": { "id": "Person1", "username": "David" },
+	"assistants": [ { "id": "Person2", "username": "Ryan" } ],
+	"description": "Finalize walkthrough doc",
+	"categories": [
+		{ "id": "Category3", "description": "Work"},
+		{ "id": "Category5", "description": "Indoors"}
+	],
+	"notes": [ "Note1", "Note2" ],
+    "mostRecentNotes": [
+    	{ "id": "Note1", "summary": "I reviewd relational model w/Ryan..."}
+    ]
+}
