@@ -1,0 +1,15 @@
+{
+  "name": "nodequery",
+  "version": "1.0.0",
+  "description": "Simple query example with node.js",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "David Makogon",
+  "license": "MIT",
+  "dependencies": {
+    "documentdb": "^1.4.0"
+  },
+  "devDependencies": {}
+}
