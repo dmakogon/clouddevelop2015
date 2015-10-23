@@ -473,11 +473,14 @@ Putting this all together:
 
 #### Getting tasks
 
-Get all tasks for a given person, along with description, categories
- and status.
+Get all tasks for a given person
 
 ```
-TBD
+SELECT t.description, t.person.username, a.username as Assistants
+FROM t
+JOIN a in t.assistants
+WHERE t.type="Task"
+AND t.person.username="David"
 ```
 
 #### Getting the list of people with tasks assigned
@@ -485,11 +488,15 @@ TBD
 First: A list of primary task owners
 
 ```
-TBD
+SELECT p.username as TaskOwner from p
+WHERE p.type="Person"
+and is_defined(p.tasks)
 ```
 
 Now, find people who are tagged as assistants
 
 ```
-TBD
+SELECT p.username as Assistant from p
+WHERE p.type="Person"
+and is_defined(p.assistWithTasks)
 ```
