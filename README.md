@@ -8,32 +8,37 @@ learn about Document Database data considerations.
 We'll take a very simple relational model and walk through several refactorings
 as we develop a Document model.
 
-## Interesting stuff to know
+## Prerequisites
 
-### How to set up database account
+We are using Azure DocumentDB as we work through examples. You should
+be able to apply these ideas to any document-based database, such as MongoDB.
 
- - account creation
- - keys
- - create database
- - create collection
+Assuming you'll be working with DocumentDB:
+
+### Creating a database to work with
+
+ - Create a new DocumentDB account via the portal
+ - Find your database URI and keys (in account settings)
+ - create a database with a single collection (lowest tier, S1, is fine). Why a single collection? We'll get to that in a bit...
 
 ### How to query
 
- - Portal (if you have an Azure subscription)
- - DocDBStudio (Windows-only)
- - code (we'll show node, .net)
+ - Via the Azure portal (portal.azure.com), the DocumentDB panel has a query window
+ - DocDBStudio (Windows-only, downloadable from [here](https://github.com/mingaliu/DocumentDBStudio))
+ - code (we have simple query-runner command-line apps written in
+ both node and .net that you may use during the workshop)
 
 ### How to measure queries
- - RU costs (in portal, in DocDBStudio, and in code)
 
-### Discussion points
- - Collection per type?
-
+Each DocumentDB query has a related Request Unit (RU) cost.
+A query's cost is returned along with the query result. This
+is displayed in the portal and DocDBStudio. Both the node and .net
+examples also show how to extract and display the RU cost.
 
 # The Relational Model
 
 For the workshop, we'll tackle a Task database. And to make it a bit more interesting,
-it has a bunch of tables and normalization that goes beyond the basic task list:
+it has a bunch of tables and normalization:
 
  Table | description
  :------|:------------
@@ -85,8 +90,43 @@ Ok, so we have many tables comprising our Person- and Task- database. Let's now
 think in terms of Document models. We'll take things a step at a time, looking at
 various options and pros/cons. The hope is that we"ll find a workable model.
 
+## A few notes about DocumentDB
+
+### DocumentDB and ID's
+
+Each DocumentDB document must have a unique id property (specifically, `id`). When creating documents via
+the portal, you'll need to specificy this id. When using one of the SDK's, a guid-based id will be created
+for you if you omit it.
+
+The `id` property must be a striing.
+
+### DocumentDB and collections
+
+When arriving from a relational world, it's easy to imagine a document collection being the equivalent
+of a SQL table: A grouping of similar content (e.g. a Person collection or a Task collection).
+However, that analogy isn't really accurate, as a collection may contain *any* type of data,
+whether homogeneous or heterogeneous. Even content of same type could have different property
+subsets. This is an inherent advantage of document databases, since there's no enforced
+per-document schema.
+
+When executing queries, the typical boundary is the collection. If, for example, you split your
+Person and Task data across multiple collections, and you want to retrieve a person and all of their
+tasks, you'll need to execute multiple queries to retrieve this data.
+
+One more consideration: DocumentDB scales on a per-collection basis. Each collection has storage and
+performance characteristics, and a related cost. To reduce cost (especially in this learning exercise),
+it makes fiscal sense to store all data in a single collection.
+
+If differentiation of types becomes an issue (e.g. Task and Person each have a `Name` property, and you
+only want to query names of Persons), consider adding a `Type` property to each document, which allows
+you to filter via `WHERE` clause.
+
+For this workshop, assume all data is stored in a single collection.
+
+
 ## Our two most important entities: Person and Task
 
+Ok, now that we have the prerequisites out of the way, let's dig in to the modeling.
 This data model is all about tasks, and the people who are assigned to them. If you
 think about this in terms of JSON, there are two obvious first-cut approaches:
 
@@ -96,16 +136,15 @@ This is similar to a relational junction table:
 ```
 {
 	"type": "Person",
-	"id": "Person1",
-	...
+	"id": "Person1"
 }
 {
 	"type": "Task",
-	"id": "Task2",
-	...
+	"id": "Task2"
 }
 {
 	"type": "TaskAssignment",
+	"id": "...",
 	"taskId": "Task2",
 	"personId": "Person1"
 }
@@ -114,9 +153,6 @@ This approach keeps Persons and Tasks completely separate. However, this now
 requires up to *three* reads / writes per operation. And it really doesn't buy
 much in terms of usefulness.
 
-### Queries: approach 1
-
-TBD
 ### Person+Task approach 2: People containing task lists
 
 Imagine each Person document contains an array of tasks:
@@ -128,12 +164,12 @@ Imagine each Person document contains an array of tasks:
 	"username": "David",
 	"tasks": [
 		{
-			"id": "Task1",
+			"taskId": "Task1",
 			"description": "Pack for CloudDevelop",
 			"status": "In progress"
 		},
 		{
-			"id": "Task2",
+			"taskId": "Task2",
 			"description": "Finalize walkthrough doc",
 			"status": "Complete"
 		}
@@ -160,9 +196,6 @@ it would require an additional read to fetch Task info (stored in separate
 documents). Same for writes: Each
 new task would generate an insert (Task) and an update (Person).
 
-### Queries: approach 2
-
-TBD
 
 ### Person+Task approach 3: Task lists containing Persons
 
@@ -175,9 +208,9 @@ a realistic concern).
 ```
 {
 	"type": "Task",
-	"taskId": "Task2",
+	"id": "Task2",
 	"personId": "Person1",
-	assistants: [ "Person2" ],
+	"assistants": [ "Person2" ],
 	"description": "Finalize walkthrough doc"
 }
 ```
@@ -187,31 +220,29 @@ denormalizing a bit:
 ```
 {
 	"type": "Task",
-	"taskId": "Task2",
+	"id": "Task2",
 	"personId": "Person1",
-	**"username": "David"**,
-	**assistants: [ {"id": "Person2", "username": "Ryan"} ]**
+	"username": "David",
+	"assistants": [ {"personId": "Person2", "username": "Ryan"} ]
 	...
 }
 ```
 
-This approach (putting the person"s ID in the task)
+This approach (putting the person's ID in the task)
 is equivalent to the PersonId foreign key in the relational Task table.
-
-### Queries: approach 3
-
-TBD
 
 
 ### Which to choose?
 
-Looking at all three approaches, approach #3 in general seems to fit our needs
-the best. If there"s ever a need to have speedier access to task details for a
-given Person, #3 could be combined with approach #3, storing a Task Id array
-within a Person document. For now, we"ll stick with approach #3.
+Looking at all three approaches, **approach #3** (Tasks with references to assigned person(s)) in general seems to fit our needs
+the best. If there's ever a need to have speedier access to task details for a
+given Person, #3 could be combined with approach #2, storing a Task Id array
+within a Person document. For now, we'll stick with approach #3.
 
 
 ## Task categories
+
+Thinking about our Task list, we probably want each task to have one or more assignable categories.
 
 With our relational model, we kept a normalized list of categories in a Category table:
 
@@ -221,13 +252,15 @@ Id | CategoryName
 2  | School
 3  | Work
 
-Since each task may have multiple categories, we have a TaskCategories table:
+Since each task may have multiple categories, we would likely have a TaskCategories table:
 
 TaskId | CategoryId
 :------|:----------
 1 | 3
 2 | 3
 2 | 5
+
+Let's think about how we'd model this with documents.
 
 ### Task Categories: Approach 1 - TaskCategories
 
@@ -237,50 +270,54 @@ In a document model, we could have something similar to our relational model:
 
 Note: With the relational tables, we have one row per task category. We could
 certainly do that with Documents, but since we have the ability to contain
-an array of IDs within a document, it seems to make sense to do so.
+an array of IDs within a document, it make sense to take advantage of arrays.
 
 We"d then have something like this:
 
 ```
 {
 	"type": "Category",
-	categoryId: "3",
+	"id": "Category3",
 	"description": "Work"
 }
 {
 	"type": "Category",
-	categoryId: "5",
+	"id": "Category5",
 	"description": "Indoors"
 }
 {
-	"type": "TaskCategories"
-	"id": "2"
-	CategoryIds: [ "3", "5" ]
+	"type": "Task",
+	"id": "Task2",
+	"description": "Finalize walkthrough doc"
+}
+{
+	"type": "TaskCategories",
+	"id": "...",
+	"taskId": "Task2"
+	"categoryIds": [ "Category3", "Category5" ]
 }
 ```
+
 However:
- - This would require two lookups.
+ - This would require multiple lookups, to retrieve task detail and category detail
  - To find all tasks within a given category, you"d need to search each array
    of TaskCategories for a given category ID (and then query each Task by Id to get
    task details).
 
 ### Task Categories: Approach 2 - Task with category IDs
 
-As an alternative:
- - Task document, with array of Category ID"s
- - Since there"s a bounded number of categories, we don"t have an issue storing them in
-the main document.
+As an alternative, we can simply store the array of categories directly in the Task document.
 
 ```
 {
 	"type": "Task",
-	"id": "2",
+	"id": "Task2",
 	"description": "Finalize walkthrough doc",
-	categories: [ "3", "5" ]
+	"categories": [ "Category3", "Category5" ]
 }
 ```
-Approach #2 still requires searching each task"s array, but there"d be no need
-for additional queries to retrieve Task details.
+Approach #2 still requires searching each task's array to find all tasks for a given category,
+but there'd be no need for additional queries to retrieve Task details.
 
 Optionally, we could denormalize data to optimize our read query:
  - Task document, with array of Category ID + Category name
@@ -288,57 +325,43 @@ Optionally, we could denormalize data to optimize our read query:
 ```
 {
 	"type": "Task",
-	"id": "2",
+	"id": "Task2",
 	"description": "Finalize walkthrough doc",
-	**categories: [**
-		**{ categoryId: 3, categoryName: "Work"},**
-		**{ categoryId: 5, categoryName: "Indoors"}**
+	categories: [
+		{ "categoryId": "Category3", categoryName: "Work" },
+		{ "categoryId": "Category5", categoryName: "Indoors" }
 	]
 }
 ```
 Denormalization has a slight downside: If a category name changed, you might need to
 find all tasks with that category, and update the task document. If you
 choose to keep categories as is, and just make them *disabled* in lieu of a
-newer category, then you"d never have the data update issue.
+newer category, then you wouldn't have the data update issue.
 
-
-### Queries: Task categories
-
-#### Retrieve a person"s tasks for a given category
-
-TBD
-
-#### Retrieve all tasks for a given category
-
-TBD
-
-#### Retrieve a person"s task categories
-
-TBD
 
 ## Task notes
 
-Notes are interesting, in that they are *unbounded*. That is, there"s no limit 
+Notes are interesting, in that they are *unbounded*. That is, there's no limit 
 to the number of notes that a Task may have. Liken this to comments on a blog post:
-Unless there"s a specific reason to limit this in the app, the database must
-accomodate the unbounded condition.
+Unless there's a specific reason to limit this in the app, the database must
+accomodate the unbounded condition, with unlimited notes.
 
 The challenge is that Documents are capped in size. With DocumentDB, that size is 512K.
-While it"s not very likely you"ll exceed this limit while storing a Task, it"s not difficult
-to imagine this happening.
+While it's not very likely you'll exceed this limit while storing a Task, it's not difficult
+to imagine this happening if you kept copious, detailed notes for each of your tasks.
 
 ### Task notes: Approach 1 - Array within Task
 
-Here"s what our *unbounded* Task+Notes document might look like:
+Here's what our *unbounded* Task+Notes document might look like:
 
 ```
 {
 	"type": "Task",
-	"id": "2",
+	"id": "Task2",
 	"description": "Finalize walkthrough doc",
-	notes: [
-		{ "id": "1", "note": "Reviewed relational model w/Ryan"},
-		{ "id": "1", "note": "Reviewed document model w/Ryan"}
+	"notes": [
+		{ "noteId": "Note1", "note": "Reviewed relational model w/Ryan"},
+		{ "noteId": "Note2", "note": "Reviewed document model w/Ryan"}
 	]
 }
 ```
@@ -352,57 +375,53 @@ To avoid the unbounded-array issue, Notes may be stored in separate Documents:
 ```
 {
 	"type": "Task",
-	"id": "2",
+	"id": "Task2",
 	"description": "Finalize walkthrough doc"
 }
 {
 	"type": "Note",
-	"id": "1",
-	noteId: "1",
-	"id": "2",
+	"noteId": "Note1",
+	"taskId": "Task2",
 	"note": "Reviewed relational model w/Ryan"
 }
 ```
-We now have two queries if we want a task plus notes. However, if notes aren"t
+We now have two queries if we want a task plus notes. However, if notes aren't
 often viewed immediately (e.g. you merely list the Task names, and then show
-notes only when a task"s details are shown), this might not really impact
+notes only when a task's details are shown), this might not really impact
 performance.
 
-### Note Id"s within Task
+### Note Id's within Task
 
 If you needed to quickly discover how many notes a particular task had (if any), you
-could optionally store an array of Note Id"s into the Task document.
+could optionally store an array of Note Id's into the Task document.
 
+```
 {
 	"type": "Task",
-	"id": "2",
+	"id": "Task2",
 	"description": "Finalize walkthrough doc",
-	notes: [ "1", "5", "7" ]
+	"notes": [ "Note1", "Note5", "Note7" ]
 }
+```
 
 ### Note highlights within Task
 
-Just like online merchants display one or two relevant product reviews on the summary
+Just like online merchants display one or two relevant product reviews on a product summary
 page, you may want to show the most recent note (or at least part of it). So... consider
-this bit of denormalization, storing something about the most recent note (or array of most recent notes)
+this bit of denormalization, storing something about the most recent note (or array of most recent notes):
 
+```
 {
 	"type": "Task",
-	"id": "2",
+	"id": "Task2",
 	"description": "Finalize walkthrough doc",
-	notes: [ "1", "5", "7" ],
+	"notes": [ "Note1", "Note5", "Note7" ],
     mostRecentNotes: [
-    	{ noteId: "1", timestamp: "", summary: "I reviewd..."}
+    	{ noteId: "Note1", timestamp: "", summary: "I reviewd..."}
     ]
 }
-
-### Queries: Task notes
-
-#### Retrieve all notes for a task, in reverse-chrono order
-
 ```
-SELECT * FROM c where c.taskId = "Task2" ORDER BY c.timestamp DESC
-```
+
 
 # Putting it all together - our Document model
 
@@ -412,18 +431,19 @@ So... we have several options for our final model, each with various tradeoffs a
  - Unbounded vs bounded
  - Denormalization
 
-There"s really no single correct way to model this data, but here"s a strawman example,
+There's really no single correct way to model this data, but here's a strawman example,
 based on the following decisions:
- - Task-first approach. That is, approach #2 from above, where each task references
- the person(s) working on the task.
- - Task categories referenced as an array of category ID"s within a Task
- - Task notes stored as separate documents. This gives us leeway to add other 
- information to notes, and to view them separately
+ - Task-first approach. Each task references the person(s) working on the task.
+ - Along with Person id in tasks, we'll denormalize and store username for faster retrieval
+ - Task categories referenced as an array of category ID's within a Task
+ - Task notes stored as separate documents, with note id arrays stored within a task,
+ along with a "recent note" text teaser.
 
-The way you start might not be the way you end up:
- - Imagine building a Task-first system and finding out, through telemetry,
- people are using it in a Person-first way
-Putting this all together:
+Again, this is a strawman, and you might design something completely different. Or, maybe
+you start with the task-first approach, and then find out, through telemetry,
+ people are using your app in a Person-first way and you need to remodel your data.
+
+Ok let's put this all together:
 
 ```
 {
@@ -451,27 +471,27 @@ Putting this all together:
 {
 	"type": "Task",
 	"id": "Task2",
-	"person": { "id": "Person1", "username": "David" },
-	"assistants": [ { "id": "Person2", "username": "Ryan" } ],
+	"person": { "personId": "Person1", "username": "David" },
+	"assistants": [ { "personId": "Person2", "username": "Ryan" } ],
 	"description": "Finalize walkthrough doc",
 	"categories": [
-		{ "id": "Category3", "description": "Work"},
-		{ "id": "Category5", "description": "Indoors"}
+		{ "categoryId": "Category3", "description": "Work"},
+		{ "categoryId": "Category5", "description": "Indoors"}
 	],
 	"notes": [ "Note1", "Note2" ],
     "mostRecentNotes": [
-    	{ "id": "Note1", summary: "I reviewd relational model w/Ryan..."}
+    	{ "noteId": "Note2", "summary": "I reviewde relational model w/Ryan..."}
     ]
 }
 {
 	"type": "Note",
 	"id": "Note2",
-	"person": { "id": "Person1", "username": "David"},
+	"person": { "personId": "Person1", "username": "David"},
 	"note": "I reviewed relational model w/Ryan and blah blah foo bar something really long goes in to this note. Yay."
 }
 ```
 
-### Queries: Strawman model
+### Query examples: Strawman model
 
 #### Getting tasks
 
@@ -501,4 +521,12 @@ Now, find people who are tagged as assistants
 SELECT p.username as Assistant from p
 WHERE p.type="Person"
 and is_defined(p.assistWithTasks)
+```
+
+Retrieve the category list for a given task:
+
+```
+select c.description as Category from t 
+join c in t.categories
+where t.type="Task" and t.id="Task2"
 ```
